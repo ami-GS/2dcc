@@ -33,8 +33,6 @@ typedef enum {
     ND_NEQ,
     ND_GT,
     ND_GTEQ,
-    ND_SL,
-    ND_SLEQ
 } NodeKind;
 
 typedef struct Node Node;
@@ -117,9 +115,9 @@ Node *relational() {
         else if (consume("<"))
             node = new_node(ND_GT, node, add());
         else if (consume(">="))
-            node = new_node(ND_SLEQ, node, add());
+            node = new_node(ND_GTEQ, add(), node);
         else if (consume(">"))
-            node = new_node(ND_SL, node, add());
+            node = new_node(ND_GT, add(), node);
         else
             return node;
     }
@@ -231,14 +229,16 @@ Token *tokenize(char *p) {
             continue;
         }
 
-        if (strncmp(p, "==", 2) == 0 || strncmp(p, "!=", 2) == 0) {
+        if (strncmp(p, "==", 2) == 0 || strncmp(p, "!=", 2) == 0 ||
+        strncmp(p, "<=", 2) == 0 || strncmp(p, ">=", 2) == 0) {
             cur = new_token(TK_RESERVED, cur, p, 2);
             p += 2;
             continue;
         }
 
         if (*p == '+' || *p == '-' || *p == '*' ||
-         *p == '/' || *p == '(' || *p == ')') {
+         *p == '/' || *p == '(' || *p == ')' ||
+         *p == '<' || *p == '>') {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
