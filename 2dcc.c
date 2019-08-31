@@ -29,6 +29,12 @@ typedef enum {
     ND_MUL,
     ND_DIV,
     ND_NUM,
+    ND_EQU,
+    ND_NEQ,
+    ND_GT,
+    ND_GTEQ,
+    ND_SL,
+    ND_SLEQ
 } NodeKind;
 
 typedef struct Node Node;
@@ -40,7 +46,7 @@ struct Node {
     int val;
 };
 
-bool consume(char op);
+bool consume(char *op);
 void expect(char op);
 int expect_number();
 Node *expr();
@@ -63,7 +69,7 @@ Node *new_node_num(int val) {
 }
 
 Node *term() {
-    if (consume('(')) {
+    if (consume("(")) {
         Node *node = expr();
         expect(')');
         return node;
@@ -71,29 +77,69 @@ Node *term() {
     return new_node_num(expect_number());
 }
 
+Node *unary() {
+    if (consume("+"))
+        return term();
+    if (consume("-"))
+        return new_node(ND_SUB, new_node_num(0), term());
+    return term();
+}
+
 Node *mul() {
-    Node *node = term();
+    Node *node = unary();
     for (;;) {
-        if (consume('*'))
-            node = new_node(ND_MUL, node, term());
-        else if (consume('/'))
-            node = new_node(ND_DIV, node, term());
+        if (consume("*"))
+            node = new_node(ND_MUL, node, unary());
+        else if (consume("/"))
+            node = new_node(ND_DIV, node, unary());
         else
             return node;
     }
 }
 
-Node *expr() {
+Node *add() {
     Node *node = mul();
-
     for (;;) {
-        if (consume('+'))
+        if (consume("+"))
             node = new_node(ND_ADD, node, mul());
-        else if (consume('-'))
+        else if (consume("-"))
             node = new_node(ND_SUB, node, mul());
         else
             return node;
     }
+}
+
+Node *relational() {
+    Node *node = add();
+    for (;;) {
+        if (consume("<="))
+            node = new_node(ND_GTEQ, node, add());
+        else if (consume("<"))
+            node = new_node(ND_GT, node, add());
+        else if (consume(">="))
+            node = new_node(ND_SLEQ, node, add());
+        else if (consume(">"))
+            node = new_node(ND_SL, node, add());
+        else
+            return node;
+    }
+}
+
+Node *equality() {
+    Node *node = relational();
+    for (;;) {
+        if (consume("=="))
+            node = new_node(ND_EQU, node, relational());
+        else if (consume("!="))
+            node = new_node(ND_NEQ, node, relational());
+        else
+            return node;
+    }
+}
+
+
+Node *expr() {
+    Node *node = equality();
 }
 
 void gen(Node *node) {
@@ -136,8 +182,10 @@ void error(char *fmt, ...) {
     exit(1);
 }
 
-bool consume(char op) {
-    if (token->kind != TK_RESERVED || token->str[0] != op)
+bool consume(char *op) {
+    if (token->kind != TK_RESERVED ||
+        strlen(op) != token->len ||
+        memcmp(token->str, op, token->len))
         return false;
     token = token->next;
     return true;
