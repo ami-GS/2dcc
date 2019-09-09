@@ -20,7 +20,19 @@ Token *tokenize(char *p) {
     head.next = NULL;
     Token *cur = &head;
 
+    char *name_start = NULL;
     while (*p) {
+        if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z')) {
+            if (!name_start) {
+                name_start = p;
+            }
+            p++;
+            continue;
+        } else if (name_start) {
+            cur = new_token(TK_IDENT, cur, name_start, p-name_start);
+            name_start = NULL;
+        }
+
         if (isspace(*p)) {
             p++;
             continue;
