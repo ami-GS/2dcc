@@ -50,5 +50,9 @@ b=3;"
 try 3 "return 1+2;"
 try 2 "if (1 == 1) 1+1;"
 try 4 "if (1 == 0) 1+1; else 2+2;"
+try 6 "ans = 3;
+for (i = 0; i < 3; i = i + 1) ans = ans + 1;"
+try 3 "i = 0;
+while (i < 3) i = i + 1;"
 
 echo OK

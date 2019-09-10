@@ -31,7 +31,9 @@ bool consume(char *op) {
     if ((token->kind != TK_RESERVED &&
         token->kind != TK_RETURN &&
         token->kind != TK_IF &&
-        token->kind != TK_ELSE) ||
+        token->kind != TK_ELSE &&
+        token->kind != TK_WHILE &&
+        token->kind != TK_FOR) ||
         strlen(op) != token->len ||
         strncmp(token->str, op, token->len))
         return false;
@@ -185,6 +187,29 @@ Node *stmt() {
         }
         return node;
     }
+
+    if (consume("while")) {
+        node = new_node(ND_WHILE, NULL, NULL);
+        expect('(');
+        node->cond = expr();
+        expect(')');
+        node->body = stmt();
+        return node;
+    }
+
+    if (consume("for")) {
+        node = new_node(ND_FOR, NULL, NULL);
+        expect('(');
+        node->init = expr();
+        expect(';');
+        node->cond = expr();
+        expect(';');
+        node->inc = expr();
+        expect(')');
+        node->body = stmt();
+        return node;
+    }
+
     if (consume("return")) {
         node = new_node(ND_RETURN, expr(), NULL);
     } else {
