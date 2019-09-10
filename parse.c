@@ -29,7 +29,9 @@ LVar* find_lvar(Token *tk) {
 
 bool consume(char *op) {
     if ((token->kind != TK_RESERVED &&
-        token->kind != TK_RETURN) ||
+        token->kind != TK_RETURN &&
+        token->kind != TK_IF &&
+        token->kind != TK_ELSE) ||
         strlen(op) != token->len ||
         strncmp(token->str, op, token->len))
         return false;
@@ -172,6 +174,17 @@ Node *expr() {
 Node *stmt() {
     Node *node;
 
+    if (consume("if")) {
+        node = new_node(ND_IF, NULL, NULL);
+        expect('(');
+        node->cond = expr();
+        expect(')');
+        node->then = stmt();
+        if (consume("else")) {
+            node->els = stmt();
+        }
+        return node;
+    }
     if (consume("return")) {
         node = new_node(ND_RETURN, expr(), NULL);
     } else {

@@ -48,5 +48,7 @@ try 4 "a=4;"
 try 3 " a=5;
 b=3;"
 try 3 "return 1+2;"
+try 2 "if (1 == 1) 1+1;"
+try 4 "if (1 == 0) 1+1; else 2+2;"
 
 echo OK
