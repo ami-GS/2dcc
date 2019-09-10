@@ -21,7 +21,7 @@ Node *new_node_num(int val) {
 
 LVar* find_lvar(Token *tk) {
     for (LVar *lvar = locals; lvar; lvar = lvar->next) {
-        if (tk->len == lvar->len && memcmp(tk->str, lvar->name, tk->len))
+        if (tk->len == lvar->len && memcmp(tk->str, lvar->name, tk->len) == 0)
             return lvar;
     }
     return NULL;
@@ -43,8 +43,9 @@ bool consume(char *op) {
 
  Token *consume_ident() {
     if (token->kind == TK_IDENT) {
+        Token *tmp = token;
         token = token->next;
-        return token;
+        return tmp;
     }
     return NULL;
 }
@@ -83,14 +84,14 @@ Node *primary() {
             node->offset = lvar->offset;
         } else {
             lvar = calloc(1, sizeof(LVar));
+            if (!locals) {
+                locals = calloc(1, sizeof(LVar));
+                locals->offset = 0;
+            }
             lvar->next = locals;
             lvar->name = tok->str;
             lvar->len = tok->len;
-            if (!locals) {
-                lvar->offset = 0;
-            } else {
-                lvar->offset = locals->offset + 8;
-            }
+            lvar->offset = locals->offset + 8;
             node->offset = lvar->offset;
             locals = lvar;
         }
