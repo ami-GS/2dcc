@@ -7,12 +7,17 @@
 Token* new_token(TokenKind kind, Token *cur, char* str, int len) {
     Token *tok = calloc(1, sizeof(Token));
     tok->kind = kind;
-    tok->str = calloc(len, sizeof(char));
-    memcpy(tok->str, str, sizeof(char) * len);
     tok->str = str;
     tok->len = len;
     cur->next = tok;
     return tok;
+}
+
+bool is_alnum(char c) {
+    return ('a' <= c && c <= 'z') ||
+           ('A' <= c && c <= 'Z') ||
+           ('0' <= c && c <= '9') ||
+           (c == '_');
 }
 
 Token *tokenize(char *p) {
@@ -22,6 +27,11 @@ Token *tokenize(char *p) {
 
     char *name_start = NULL;
     while (*p) {
+        if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+            cur = new_token(TK_RETURN, cur, p, 6);
+            p += 6;
+        }
+
         if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z')) {
             if (!name_start) {
                 name_start = p;
