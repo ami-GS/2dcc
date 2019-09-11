@@ -77,6 +77,15 @@ void gen(Node *node) {
             gen(node->inc);
             printf("  jmp .LbeginXXX\n");
             printf(".LendXXX:\n");
+        case ND_BLOCK:
+        {
+            int i = 0;
+            while (node->block[i]) {
+                gen(node->block[i]);
+                i++;
+            }
+        }
+            return;
     }
 
     gen(node->lhs);

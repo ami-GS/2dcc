@@ -211,6 +211,15 @@ Node *stmt() {
         return node;
     }
 
+    if (consume("{")) {
+        node = new_node(ND_BLOCK, NULL, NULL);
+        int i = 0;
+        while (!consume("}")) {
+            node->block[i++] = stmt();
+        }
+        return node;
+    }
+
     if (consume("return")) {
         node = new_node(ND_RETURN, expr(), NULL);
     } else {

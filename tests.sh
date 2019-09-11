@@ -57,5 +57,6 @@ try 6 "ans = 3;
 for (i = 0; i < 3; i = i + 1) ans = ans + 1;"
 try 3 "i = 0;
 while (i < 3) i = i + 1;"
+try 3 "{ a=1; c = 4; {b=2; a+b;} }"
 
 echo OK

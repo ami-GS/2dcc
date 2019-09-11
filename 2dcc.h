@@ -58,6 +58,7 @@ typedef enum {
     ND_ELSE,
     ND_WHILE,
     ND_FOR,
+    ND_BLOCK,
 } NodeKind;
 
 typedef struct Node Node;
@@ -80,7 +81,9 @@ struct Node {
     Node *init;
     Node *inc;
 
-
+    // { stmt }
+    // TODO: dynamic
+    Node* block[128];
 
 };
 Node *code[100];
