@@ -30,3 +30,25 @@ void error(char *fmt, ...) {
     fprintf(stderr, "\n");
     exit(1);
 }
+
+
+Vector *new_vec() {
+    Vector *v = malloc(sizeof(Vector));
+    v->data = malloc(sizeof(void *) * 16);
+    v->capacity = 16;
+    v->len = 0;
+    return v;
+}
+
+void vec_push(Vector *vec, void *data) {
+    if (vec->len == vec->capacity) {
+        vec->capacity += 16;
+        vec->data = realloc(vec->data, sizeof(void *) * vec->capacity);
+    }
+    vec->data[vec->len++] = data;
+}
+
+void *vec_get(Vector *vec, int i) {
+    assert(i < vec->len);
+    return vec->data[i];
+}

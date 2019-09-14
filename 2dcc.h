@@ -5,6 +5,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct {
+    void **data;
+    int capacity;
+    int len;
+} Vector;
+
+Vector *new_vec();
+void vec_push(Vector *vec, void *data);
+void *vec_get(Vector *vec, int i);
+
+
 typedef enum {
     TK_RESERVED,
     TK_IDENT,
