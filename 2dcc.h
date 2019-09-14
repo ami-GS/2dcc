@@ -14,13 +14,32 @@ typedef enum {
     TK_ELSE,
     TK_WHILE,
     TK_FOR,
+    // type
+    TK_VOID,
+    TK_INT,
+    TK_CHAR,
     TK_EOF,
 } TokenKind;
 
 typedef struct LVar LVar;
+typedef struct Type Type;
+
+enum {
+    VOID,
+    INT,
+    CHAR,
+};
+
+struct Type {
+    int type;
+    int size; // in byte
+
+    Type *pointer_to;
+};
 
 struct LVar {
   LVar *next;
+  Type type;
   char *name;
   int len;
   int offset;

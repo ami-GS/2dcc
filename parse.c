@@ -27,6 +27,27 @@ LVar* find_lvar(Token *tk) {
     return NULL;
 }
 
+int strtype_to_int(char *strtype, int len) {
+    if (strncmp(strtype, "int", 3) == 0) {
+        return INT;
+    } else if (strncmp(strtype, "char", 4) == 0) {
+        return CHAR;
+    } else if (strncmp(strtype, "void", 3) == 0) {
+        return VOID;
+    }
+}
+
+int type_to_sizeof(int type) {
+    switch (type) {
+    case VOID:
+        return 0;
+    case INT:
+        return 4;
+    case CHAR:
+        return 1;
+    }
+}
+
 bool consume(char *op) {
     if ((token->kind != TK_RESERVED &&
         token->kind != TK_RETURN &&
@@ -43,6 +64,17 @@ bool consume(char *op) {
 
  Token *consume_ident() {
     if (token->kind == TK_IDENT) {
+        Token *tmp = token;
+        token = token->next;
+        return tmp;
+    }
+    return NULL;
+}
+
+Token *consume_type() {
+    if (token->kind == TK_INT ||
+    token->kind == TK_CHAR ||
+    token->kind == TK_VOID) {
         Token *tmp = token;
         token = token->next;
         return tmp;
@@ -74,6 +106,7 @@ Node *primary() {
         return node;
     }
 
+    Token *type = consume_type();
     Token *tok = consume_ident();
     if (tok) {
         node = calloc(1, sizeof(Node));
@@ -83,15 +116,21 @@ Node *primary() {
         if (lvar) {
             node->offset = lvar->offset;
         } else {
+            if (!type) {
+                error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
+            }
+
             lvar = calloc(1, sizeof(LVar));
             if (!locals) {
                 locals = calloc(1, sizeof(LVar));
                 locals->offset = 0;
             }
             lvar->next = locals;
+            lvar->type.type = strtype_to_int(type->str, type->len);
+            lvar->type.size = type_to_sizeof(lvar->type.type); // TODO: remove member .size
             lvar->name = tok->str;
             lvar->len = tok->len;
-            lvar->offset = locals->offset + 8;
+            lvar->offset = locals->offset + 4;
             node->offset = lvar->offset;
             locals = lvar;
         }

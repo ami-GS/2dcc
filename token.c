@@ -42,6 +42,15 @@ Token *tokenize(char *p) {
         } else if (strncmp(p, "while", 5) == 0 && !is_alnum(p[5])) {
             cur = new_token(TK_WHILE, cur, p, 5);
             p += 5;
+        } else if (strncmp(p, "int", 3) == 0 && !is_alnum(p[3])) {
+            cur = new_token(TK_INT, cur, p, 3);
+            p += 3;
+        } else if (strncmp(p, "char", 4) == 0 && !is_alnum(p[4])) {
+            cur = new_token(TK_CHAR, cur, p, 4);
+            p += 4;
+        } else if (strncmp(p, "void", 4) == 0 && !is_alnum(p[4])) {
+            cur = new_token(TK_VOID, cur, p, 4);
+            p += 4;
         }
 
         if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z')) {
