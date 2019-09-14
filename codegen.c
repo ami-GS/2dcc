@@ -95,6 +95,13 @@ void gen(Node *node) {
             printf("  mov rax, [rax]\n");
             printf("  push rax\n");
             return;
+        case ND_RETURN:
+            gen(node->lhs);
+            printf("  pop rax\n");
+            printf("  mov rsp, rbp\n");
+            printf("  pop rbp\n");
+            printf("  ret\n");
+            return;
     }
 
     gen(node->lhs);
@@ -137,12 +144,6 @@ void gen(Node *node) {
             printf("  setle al\n");
             printf("  movzb rax, al\n");
             break;
-        case ND_RETURN:
-            gen(node->lhs);
-            printf("  pop rax\n");
-            printf("  mov rsp, rbp\n");
-            printf("  pop rbp\n");
-            printf("  ret\n");
     }
     printf("  push rax\n");
 }
