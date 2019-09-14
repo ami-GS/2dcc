@@ -15,6 +15,7 @@ void gen(Node *node) {
         return;
     }
 
+    static int if_cnt = 0;
     switch (node->kind) {
         case ND_NUM:
             printf("  push %d\n", node->val);
@@ -38,10 +39,10 @@ void gen(Node *node) {
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
             if (node->els) {
-                printf("  je .LelseXXX\n");
+                printf("  je .Lelse_%dXXX\n", if_cnt);
                 gen(node->then);
-                printf("  je .LendXXX\n");
-                printf(".LelseXXX:\n");
+                printf("  je .Lend_%dXXX\n", if_cnt);
+                printf(".Lelse_%dXXX:\n", if_cnt);
                 gen(node->els);
                /*
                 printf("  jne .LifXXX\n");
@@ -51,10 +52,11 @@ void gen(Node *node) {
                 gen(node->then);
                 */
             } else {
-                printf("  je .LendXXX\n");
+                printf("  je .Lend_%dXXX\n", if_cnt);
                 gen(node->then);
             }
-            printf(".LendXXX:\n");
+            printf(".Lend_%dXXX:\n", if_cnt);
+            if_cnt++;
             return;
         case ND_WHILE:
             printf(".LbeginXXX:\n");
@@ -77,6 +79,7 @@ void gen(Node *node) {
             gen(node->inc);
             printf("  jmp .LbeginXXX\n");
             printf(".LendXXX:\n");
+            return;
         case ND_BLOCK:
         {
             int i = 0;
