@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "2dcc.h"
 
 void error_at(char *loc, char *fmt, ...) {

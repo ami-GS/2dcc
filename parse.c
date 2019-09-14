@@ -19,10 +19,30 @@ Node *new_node_num(int val) {
     return node;
 }
 
-LVar* find_lvar(Token *tk) {
-    for (LVar *lvar = locals; lvar; lvar = lvar->next) {
+LVar *find_lvar(Token *tk) {
+    for (int i = 0; i < cur_func->lvar_vec->len; i++) {
+        LVar *lvar = vec_get(cur_func->lvar_vec, i);
         if (tk->len == lvar->len && memcmp(tk->str, lvar->name, tk->len) == 0)
             return lvar;
+    }
+    return NULL;
+}
+
+Arg *find_arg(Token *tk){
+    for (int i = 0; i < cur_func->arg_vec->len; i++) {
+        Arg *arg = vec_get(cur_func->arg_vec, i);
+
+        if (tk->len == arg->len && memcmp(tk->str, arg->name, tk->len) == 0)
+            return arg;
+    }
+    return false;
+}
+
+Function* find_func(Token *tk, Arg *args) {
+    for (int i = 0; i < func_vec->len; i++) {
+        Function *func = vec_get(func_vec, i);
+        if (tk->len == func->len && memcmp(tk->str, func->name, func->len) == 0)
+            return func;
     }
     return NULL;
 }
@@ -42,7 +62,7 @@ int type_to_sizeof(int type) {
     case VOID:
         return 0;
     case INT:
-        return 4;
+        return 8;
     case CHAR:
         return 1;
     }
@@ -97,6 +117,84 @@ int expect_number() {
 }
 
 Node *expr();
+Node *stmt();
+
+Node *parse_func_call(Token *tok) {
+    Function *func = find_func(tok, NULL); // TODO: arg type check
+    if (!func) {
+        error("function [%.*s] is not defined\n", tok->len, tok->str);
+    }
+    Node *node = new_node(ND_CALL, NULL, NULL);
+    node->call_arg_vec = new_vec();
+    while (!consume(")")) {
+        if (node->call_arg_vec->len) {
+            expect(',');
+        }
+        vec_push(node->call_arg_vec, expr());
+    }
+    node->name = tok->str;
+    node->name_len = tok->len;
+    return node;
+}
+
+Node *parse_func_decl(Token *type, Token *tok) {
+    // define func
+    Arg *args = calloc(1, sizeof(Arg)); // dummy pointer
+    Arg *arg_prv = args;
+    Vector *arg_vec = new_vec();
+
+    int arg_offset = 0;
+    while (!consume(")")) {
+        if (arg_vec->len) {
+            expect(',');
+        }
+        Token *arg_type = consume_type();
+        Token *arg_ident = consume_ident();
+        if (!arg_type || !arg_ident) {
+            error("syntax error in function argument field\n");
+        }
+        Arg *arg = calloc(1, sizeof(Arg));
+        arg->name = arg_ident->str;
+        arg->len = arg_ident->len;
+        arg->type.type = strtype_to_int(arg_type->str, arg_type->len);
+        arg->type.size = type_to_sizeof(arg->type.type); // TODO: remove
+        arg->offset = arg_offset;
+        arg_offset += type_to_sizeof(arg->type.type);
+
+        vec_push(arg_vec, arg);
+    }
+
+    Node *node = new_node(ND_FUNC, NULL, NULL);
+    node->arg_vec = arg_vec;
+    node->name = tok->str;
+    node->name_len = tok->len;
+
+    if (!type) {
+        error("type for function [%.*s] is not specified\n", tok->len, tok->str);
+    }
+
+    if (!func_vec) {
+        func_vec = new_vec();
+    }
+    Function *func = calloc(1, sizeof(Function));
+    func->ret_type.type = strtype_to_int(type->str, type->len);
+    func->ret_type.size = type_to_sizeof(func->ret_type.type); // TODO: remove
+    func->arg_vec = arg_vec;
+    func->name = tok->str;
+    func->len = tok->len;
+    vec_push(func_vec, func);
+
+    Function *tmp_func = cur_func;
+    cur_func = func;
+    node->body = stmt();
+    cur_func = tmp_func;
+
+    node->lvar_vec = func->lvar_vec;
+    node->total_lval_size = func->variable_offset;
+    // set args on node
+    // WARN: is this C spec?
+    return node;
+}
 
 Node *primary() {
     Node *node;
@@ -109,30 +207,44 @@ Node *primary() {
     Token *type = consume_type();
     Token *tok = consume_ident();
     if (tok) {
+        // function
+        if (consume("(")) {
+            if (!type) { // func call
+                return parse_func_call(tok);
+            }
+            return parse_func_decl(type, tok);
+        }
+
         node = calloc(1, sizeof(Node));
         node->kind = ND_LVAR;
-
-        LVar *lvar = find_lvar(tok);
-        if (lvar) {
-            node->offset = lvar->offset;
-        } else {
-            if (!type) {
-                error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
+        // TODO: bellow will be deprecated
+        if (cur_func) {
+            if (!cur_func->lvar_vec) {
+                cur_func->lvar_vec = new_vec();
             }
+            LVar *lvar_in_vec = find_lvar(tok);
+            if (lvar_in_vec) {
+                node->offset = lvar_in_vec->offset;
+            } else {
+                Arg *arg = find_arg(tok);
 
-            lvar = calloc(1, sizeof(LVar));
-            if (!locals) {
-                locals = calloc(1, sizeof(LVar));
-                locals->offset = 0;
+                if (arg) {
+                    node->kind = ND_ARG;
+                    node->offset = arg->offset;
+                    return node;
+                } else if (!type) {
+                    error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
+                }
+                lvar_in_vec = calloc(1, sizeof(LVar));
+                lvar_in_vec->type.type = strtype_to_int(type->str, type->len);
+                lvar_in_vec->type.size = type_to_sizeof(lvar_in_vec->type.type); // TODO: remove member .size
+                lvar_in_vec->name = tok->str;
+                lvar_in_vec->len = tok->len;
+                lvar_in_vec->offset = cur_func->variable_offset;
+                node->offset = lvar_in_vec->offset;
+                cur_func->variable_offset += type_to_sizeof(lvar_in_vec->type.type);
+                vec_push(cur_func->lvar_vec, lvar_in_vec);
             }
-            lvar->next = locals;
-            lvar->type.type = strtype_to_int(type->str, type->len);
-            lvar->type.size = type_to_sizeof(lvar->type.type); // TODO: remove member .size
-            lvar->name = tok->str;
-            lvar->len = tok->len;
-            lvar->offset = locals->offset + 4;
-            node->offset = lvar->offset;
-            locals = lvar;
         }
         return node;
     }
@@ -267,6 +379,9 @@ Node *stmt() {
         node = new_node(ND_RETURN, expr(), NULL);
     } else {
         node = expr();
+        if (node->kind == ND_FUNC && node->body) {
+            return node;
+        }
     }
 
     expect(';');

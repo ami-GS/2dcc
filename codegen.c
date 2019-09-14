@@ -10,6 +10,11 @@ void gen_lval(Node *node) {
     printf("  push rax\n");
 }
 
+void gen_arg(Node *node) {
+    printf("  mov rax, [rbp+%d]\n", 16 + node->offset);
+    printf("  push rax\n");
+}
+
 void gen(Node *node) {
     if (!node) {
         return;
@@ -25,6 +30,9 @@ void gen(Node *node) {
             printf("  pop rax\n");
             printf("  mov rax, [rax]\n");
             printf("  push rax\n");
+            return;
+        case ND_ARG:
+            gen_arg(node);
             return;
         case ND_ASSIGN:
             gen_lval(node->lhs);
@@ -88,6 +96,25 @@ void gen(Node *node) {
                 i++;
             }
         }
+            return;
+        case ND_FUNC:
+            printf(".global %.*s\n", node->name_len, node->name);
+            printf("%.*s:\n", node->name_len, node->name);
+            printf("  push rbp\n");
+            printf("  mov rbp, rsp\n");
+            if (node->total_lval_size) {
+                printf("  sub rsp, %d\n", node->total_lval_size);
+            }
+            gen(node->body);
+            return;
+        case ND_CALL:
+            for (int i = node->call_arg_vec->len-1; 0 <= i; i--) {
+                gen(vec_get(node->call_arg_vec, i));
+            }
+            printf("  call %.*s\n", node->name_len, node->name);
+            for (int i = node->call_arg_vec->len-1; 0 <= i; i--) {
+                printf("  pop rax\n");
+            }
             return;
         case ND_ADDR:
             gen_lval(node->lhs);

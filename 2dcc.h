@@ -56,7 +56,32 @@ struct LVar {
   int offset;
 };
 
-LVar *locals;
+//LVar *locals; // TODO: to be globals?
+
+typedef struct Function Function;
+typedef struct Arg Arg;
+
+struct Arg {
+    Type type;
+    char *name;
+    int len;
+
+    int offset;
+};
+
+struct Function {
+    char *name;
+    int len;
+    Type ret_type;
+    Vector *arg_vec;
+    Vector *lvar_vec;
+
+    // TODO: will be removed
+    int variable_offset;
+};
+
+Vector *func_vec;
+Function *cur_func;
 
 typedef struct Token Token;
 
@@ -83,14 +108,18 @@ typedef enum {
     ND_GTEQ,
     ND_ASSIGN,
     ND_LVAR,
+    ND_ARG,
     ND_RETURN,
     ND_IF,
     ND_ELSE,
     ND_WHILE,
     ND_FOR,
     ND_BLOCK,
+    ND_FUNC,
+    ND_CALL,
     ND_ADDR,
     ND_DEREF,
+
 } NodeKind;
 
 typedef struct Node Node;
@@ -116,6 +145,17 @@ struct Node {
     // { stmt }
     // TODO: dynamic
     Node* block[128];
+
+    // func
+    char* name;
+    int name_len;
+    Vector *arg_vec;
+    Vector *lvar_vec;
+    int lvars_num;
+    int total_lval_size;
+
+    // func call
+    Vector *call_arg_vec;
 
 };
 Node *code[100];
