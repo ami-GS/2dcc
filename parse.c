@@ -236,14 +236,8 @@ Node *parse_func_decl(Token *type, Token *tok) {
     return node;
 }
 
-Node *primary() {
+Node *parse_identifier() {
     Node *node;
-    if (consume("(")) {
-        node = expr();
-        expect(')');
-        return node;
-    }
-
     Token *type = consume_type();
     int ptr_cnt = 0;
     while (consume("*")) {
@@ -300,6 +294,19 @@ Node *primary() {
         }
         return node;
     }
+}
+
+Node *primary() {
+    Node *node;
+    if (consume("(")) {
+        node = expr();
+        expect(')');
+        return node;
+    }
+
+    node = parse_identifier();
+    if (node)
+        return node;
 
     return new_node_num(expect_number());
 }
