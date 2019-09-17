@@ -78,6 +78,8 @@ struct Function {
 
     // TODO: will be removed
     int variable_offset;
+    // TODO: should be multiple return information?
+    bool has_return;
 };
 
 Vector *func_vec;
@@ -156,6 +158,7 @@ struct Node {
 
     // func call
     Vector *call_arg_vec;
+    bool has_return;
 
 };
 Node *code[100];

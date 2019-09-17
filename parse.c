@@ -189,6 +189,7 @@ Node *parse_func_decl(Token *type, Token *tok) {
     node->body = stmt();
     cur_func = tmp_func;
 
+    node->has_return = func->has_return;
     node->lvar_vec = func->lvar_vec;
     node->total_lval_size = func->variable_offset;
     // set args on node
@@ -377,6 +378,7 @@ Node *stmt() {
 
     if (consume("return")) {
         node = new_node(ND_RETURN, expr(), NULL);
+        cur_func->has_return = true;
     } else {
         node = expr();
         if (node->kind == ND_FUNC && node->body) {
