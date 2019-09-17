@@ -39,6 +39,7 @@ enum {
     VOID,
     INT,
     CHAR,
+    PTR,
 };
 
 struct Type {
@@ -62,7 +63,7 @@ typedef struct Function Function;
 typedef struct Arg Arg;
 
 struct Arg {
-    Type type;
+    Type *type;
     char *name;
     int len;
 
@@ -158,7 +159,10 @@ struct Node {
 
     // func call
     Vector *call_arg_vec;
+    Type ret_type;
     bool has_return;
+
+    Type *type; // value or expr type to validate
 
 };
 Node *code[100];

@@ -4,6 +4,20 @@
 #include <string.h>
 #include "2dcc.h"
 
+Type *get_actual_type(Node *node) {
+    if (!node) {
+        return NULL;
+    }
+    Type *type = node->type;
+    if (!type) {
+        return NULL;
+    }
+    while (type->type == PTR) {
+        type = type->pointer_to;
+    }
+    return type;
+}
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
@@ -16,6 +30,8 @@ Node *new_node_num(int val) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_NUM;
     node->val = val;
+    node->ret_type.type = INT;
+    node->ret_type.size = 8; // TODO: fix
     return node;
 }
 
@@ -65,7 +81,25 @@ int type_to_sizeof(int type) {
         return 8;
     case CHAR:
         return 1;
+    case PTR:
+        return 8;
     }
+    error("unknown data type %d\n", type);
+}
+
+Type* get_type(Token *type_token, int ptr_cnt) {
+    Type *type_tmp = calloc(1, sizeof(Type));
+    type_tmp->type = strtype_to_int(type_token->str, type_token->len);
+    type_tmp->size = type_to_sizeof(type_tmp->type);
+    while (ptr_cnt) {
+        Type *ptr_type = calloc(1, sizeof(Type));
+        ptr_type->pointer_to = type_tmp;
+        ptr_type->type = PTR;
+        ptr_type->size = type_to_sizeof(ptr_type->type);
+        type_tmp = ptr_type;
+        ptr_cnt--;
+    }
+    return type_tmp;
 }
 
 bool consume(char *op) {
@@ -134,6 +168,7 @@ Node *parse_func_call(Token *tok) {
     }
     node->name = tok->str;
     node->name_len = tok->len;
+    node->ret_type = func->ret_type;
     return node;
 }
 
@@ -149,18 +184,21 @@ Node *parse_func_decl(Token *type, Token *tok) {
             expect(',');
         }
         Token *arg_type = consume_type();
+        int ptr_cnt = 0;
+        while (consume("*")) {
+            ptr_cnt++;
+        }
         Token *arg_ident = consume_ident();
+
         if (!arg_type || !arg_ident) {
             error("syntax error in function argument field\n");
         }
         Arg *arg = calloc(1, sizeof(Arg));
         arg->name = arg_ident->str;
         arg->len = arg_ident->len;
-        arg->type.type = strtype_to_int(arg_type->str, arg_type->len);
-        arg->type.size = type_to_sizeof(arg->type.type); // TODO: remove
+        arg->type = get_type(arg_type, ptr_cnt);
         arg->offset = arg_offset;
-        arg_offset += type_to_sizeof(arg->type.type);
-
+        arg_offset += type_to_sizeof(arg->type->type);
         vec_push(arg_vec, arg);
     }
 
@@ -192,6 +230,7 @@ Node *parse_func_decl(Token *type, Token *tok) {
     node->has_return = func->has_return;
     node->lvar_vec = func->lvar_vec;
     node->total_lval_size = func->variable_offset;
+    node->ret_type = func->ret_type;
     // set args on node
     // WARN: is this C spec?
     return node;
@@ -206,6 +245,10 @@ Node *primary() {
     }
 
     Token *type = consume_type();
+    int ptr_cnt = 0;
+    while (consume("*")) {
+        ptr_cnt++;
+    }
     Token *tok = consume_ident();
     if (tok) {
         // function
@@ -226,24 +269,26 @@ Node *primary() {
             LVar *lvar_in_vec = find_lvar(tok);
             if (lvar_in_vec) {
                 node->offset = lvar_in_vec->offset;
+                node->type = lvar_in_vec->type;
             } else {
                 Arg *arg = find_arg(tok);
 
                 if (arg) {
                     node->kind = ND_ARG;
                     node->offset = arg->offset;
+                    node->type = arg->type;
                     return node;
                 } else if (!type) {
                     error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
                 }
                 lvar_in_vec = calloc(1, sizeof(LVar));
-                lvar_in_vec->type.type = strtype_to_int(type->str, type->len);
-                lvar_in_vec->type.size = type_to_sizeof(lvar_in_vec->type.type); // TODO: remove member .size
+                lvar_in_vec->type = get_type(type, ptr_cnt);
                 lvar_in_vec->name = tok->str;
                 lvar_in_vec->len = tok->len;
-                lvar_in_vec->offset = cur_func->variable_offset;
+                lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size;
                 node->offset = lvar_in_vec->offset;
-                cur_func->variable_offset += type_to_sizeof(lvar_in_vec->type.type);
+                node->type = lvar_in_vec->type;
+                cur_func->variable_offset += lvar_in_vec->type->size;
                 vec_push(cur_func->lvar_vec, lvar_in_vec);
             }
         }
@@ -377,7 +422,12 @@ Node *stmt() {
     }
 
     if (consume("return")) {
-        node = new_node(ND_RETURN, expr(), NULL);
+        node = new_node(ND_RETURN, NULL, NULL);
+        node->type = &cur_func->ret_type;
+        node->ret_type = cur_func->ret_type;
+        if (cur_func->ret_type.type != VOID) {
+            node->lhs = expr();
+        }
         cur_func->has_return = true;
     } else {
         node = expr();
