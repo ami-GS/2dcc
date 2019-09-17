@@ -111,6 +111,7 @@ typedef enum {
     ND_GTEQ,
     ND_ASSIGN,
     ND_LVAR,
+    ND_LVARDECL,
     ND_ARG,
     ND_RETURN,
     ND_IF,

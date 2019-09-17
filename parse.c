@@ -260,7 +260,13 @@ Node *primary() {
         }
 
         node = calloc(1, sizeof(Node));
-        node->kind = ND_LVAR;
+        node->name = tok->str;
+        node->name_len = tok->len;
+        if (type && strncmp(token->str, "=", token->len) != 0) {
+            node->kind = ND_LVARDECL;
+        } else {
+            node->kind = ND_LVAR;
+        }
         // TODO: bellow will be deprecated
         if (cur_func) {
             if (!cur_func->lvar_vec) {

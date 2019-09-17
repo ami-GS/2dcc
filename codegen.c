@@ -32,6 +32,8 @@ void gen(Node *node) {
         case ND_NUM:
             printf("  push %d\n", node->val);
             return;
+        case ND_LVARDECL:
+            return;
         case ND_LVAR:
             gen_lval(node);
             printf("  pop rax\n");
@@ -121,8 +123,14 @@ void gen(Node *node) {
                 gen(vec_get(node->call_arg_vec, i));
             }
             printf("  call %.*s\n", node->name_len, node->name);
+            if (node->ret_type.type != VOID) {
+                printf("  mov rdi, rax\n");
+            }
             for (int i = node->call_arg_vec->len-1; 0 <= i; i--) {
                 printf("  pop rax\n");
+            }
+            if (node->ret_type.type != VOID) {
+                printf("  push rdi\n");
             }
             return;
         case ND_ADDR:
