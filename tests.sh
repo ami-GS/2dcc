@@ -102,6 +102,15 @@ int main() {
     return ret;
 }"
 try 100 "
+int main() {
+    // return 101;
+    /*
+    return 102;
+    */
+    return 100;
+}
+"
+try 100 "
 int func() {
     return 12+88;
 }
