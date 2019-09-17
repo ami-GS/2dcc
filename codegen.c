@@ -2,8 +2,13 @@
 #include "2dcc.h"
 
 void gen_lval(Node *node) {
+    if (node->kind == ND_DEREF) {
+        // e.g. *a = &b;
+        gen(node->lhs);
+        return;
+    }
     if (node->kind != ND_LVAR) {
-        error("not a left variable");
+        error("not a left variable [%s] %d", node->name, node->kind);
     }
     printf("  mov rax, rbp\n");
     printf("  sub rax, %d\n", node->offset);
