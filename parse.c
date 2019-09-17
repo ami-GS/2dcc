@@ -236,6 +236,54 @@ Node *parse_func_decl(Token *type, Token *tok) {
     return node;
 }
 
+Node *parse_arg_ref(Node *node, Token *tok) {
+    Arg *arg = find_arg(tok);
+    if (!arg)
+        return NULL;
+    node->kind = ND_ARG;
+    node->offset = arg->offset;
+    node->type = arg->type;
+    return node;
+}
+
+void parse_lval_ref(Node *node, Token *tok, LVar *lvar_in_vec) {
+    node->offset = lvar_in_vec->offset;
+    node->type = lvar_in_vec->type;
+}
+
+void parse_lval_decl(Node *node, Token *tok, Token *type, int ptr_cnt) {
+    if (type && strncmp(token->str, "=", token->len) != 0)
+        node->kind = ND_LVARDECL;
+    LVar *lvar_in_vec = calloc(1, sizeof(LVar));
+    lvar_in_vec->type = get_type(type, ptr_cnt);
+    lvar_in_vec->name = tok->str;
+    lvar_in_vec->len = tok->len;
+    lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size;
+    node->offset = lvar_in_vec->offset;
+    node->type = lvar_in_vec->type;
+    cur_func->variable_offset += lvar_in_vec->type->size;
+    vec_push(cur_func->lvar_vec, lvar_in_vec);
+}
+
+Node *parse_lval(Token *tok, Token *type, int ptr_cnt) {
+    LVar *lvar_in_vec = find_lvar(tok);
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR;
+    node->name = tok->str;
+    node->name_len = tok->len;
+    if (lvar_in_vec) {
+        parse_lval_ref(node, tok, lvar_in_vec);
+    } else {
+        parse_arg_ref(node, tok);
+        if (node->kind == ND_ARG)
+            return node;
+        if (!type)
+            error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
+        parse_lval_decl(node, tok, type, ptr_cnt);
+    }
+    return node;
+}
+
 Node *parse_identifier() {
     Node *node;
     Token *type = consume_type();
@@ -252,47 +300,7 @@ Node *parse_identifier() {
             }
             return parse_func_decl(type, tok);
         }
-
-        node = calloc(1, sizeof(Node));
-        node->name = tok->str;
-        node->name_len = tok->len;
-        if (type && strncmp(token->str, "=", token->len) != 0) {
-            node->kind = ND_LVARDECL;
-        } else {
-            node->kind = ND_LVAR;
-        }
-        // TODO: bellow will be deprecated
-        if (cur_func) {
-            if (!cur_func->lvar_vec) {
-                cur_func->lvar_vec = new_vec();
-            }
-            LVar *lvar_in_vec = find_lvar(tok);
-            if (lvar_in_vec) {
-                node->offset = lvar_in_vec->offset;
-                node->type = lvar_in_vec->type;
-            } else {
-                Arg *arg = find_arg(tok);
-
-                if (arg) {
-                    node->kind = ND_ARG;
-                    node->offset = arg->offset;
-                    node->type = arg->type;
-                    return node;
-                } else if (!type) {
-                    error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
-                }
-                lvar_in_vec = calloc(1, sizeof(LVar));
-                lvar_in_vec->type = get_type(type, ptr_cnt);
-                lvar_in_vec->name = tok->str;
-                lvar_in_vec->len = tok->len;
-                lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size;
-                node->offset = lvar_in_vec->offset;
-                node->type = lvar_in_vec->type;
-                cur_func->variable_offset += lvar_in_vec->type->size;
-                vec_push(cur_func->lvar_vec, lvar_in_vec);
-            }
-        }
-        return node;
+        return parse_lval(tok, type, ptr_cnt);
     }
 }
 
