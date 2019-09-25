@@ -17,7 +17,6 @@ try() {
     fi
 }
 
-
 try 100 "
 int main() {
     return 100;
@@ -76,7 +75,7 @@ int main() {
 try 10 "
 int main() {
     int a=2;
-    int b = &a;
+    int *b = &a;
     a=10;
     int c = *b;
     return c;
@@ -117,4 +116,102 @@ int func() {
 int main() {
     return func();
 }"
+
+try 100 "
+int func(int a, int b) {
+    return a+b+48;
+}
+int main() {
+    return func(12, 40);
+}"
+
+try 100 "
+int func(int a, int b) {
+    int c = 20;
+    int d = 28;
+    return a+b+c+d;
+}
+int main() {
+    return func(12, 40);
+}"
+
+try 89 "
+int fib_recursive(int num) {
+    if (num < 0) {
+        return 0;
+    }
+    if (num == 0) {
+        return 1;
+    }
+    if (num == 1) {
+        return 1;
+    }
+    return fib_recursive(num-1) + fib_recursive(num-2);
+
+}
+int main() {
+    return fib_recursive(10);
+}"
+
+try 89 "
+int fib_iterative(int num) {
+    int a = 1;
+    int b = 1;
+    int c = 0;
+    for (int i = 1; i < num; i = i + 1) {
+        c = b;
+        b = a + b;
+        a = c;
+    }
+    return b;
+}
+int main() {
+    return fib_iterative(10);
+}"
+
+try 100 "
+int main() {
+    int a[10];
+    int c = 2;
+    int b = 30;
+    a[c+1] = 70;
+    return a[c+1]+ b;
+}"
+
+try 100 "
+void func(int b, int *a) {
+    *a = *a + b;
+}
+int main() {
+    int a = 87;
+    func(13, &a);
+    return a;
+}"
+
+try 100 "
+int main() {
+    int x;
+    int *y;
+    y = &x;
+    *y = 100;
+    return x;
+}"
+
+try 100 "
+int main() {
+    int *a;
+    int b = 100;
+    a = &b;
+    return *a;
+}"
+
+try 100 "
+int main() {
+    int b = 4;
+    int a[6] = {92,93,94,95,96,97};
+
+    return a[b] + b;
+}"
+
+
 echo OK
