@@ -153,6 +153,68 @@ int expect_number() {
 Node *expr();
 Node *stmt();
 
+
+void parse_array_ref(Node *node, Token *ident_tkn, LVar *lvar_in_vec) {
+    node->lhs = expr();
+    expect(']');
+    node->kind = ND_LARRAY;
+    node->offset = lvar_in_vec->offset;
+    node->type = lvar_in_vec->type;
+    node->array_size = lvar_in_vec->array_size;
+}
+
+void parse_array_init(Node *node) {
+    node->kind = ND_LARRAY_INIT;
+    expect('{');
+    // type should be changed
+    Vector* array_init_nodes = new_vec();
+    while (!consume("}")) {
+            if (array_init_nodes->len != 0) {
+                expect(',');
+            }
+            vec_push(array_init_nodes, expr());
+    }
+    if (array_init_nodes->len == 0) {
+        for (int i = 0; i < node->array_size; i++) {
+            Node *zero = calloc(1, sizeof(Node));
+            zero->kind = ND_NUM;
+            zero->val = 0;
+            vec_push(array_init_nodes, zero);
+        }
+    }
+    node->array_init = array_init_nodes;
+}
+
+void set_new_lvar(Node *node, Token *type_tkn, Token *ident_tkn, int ptr_cnt, int array_size) {
+    LVar *lvar_in_vec = calloc(1, sizeof(LVar));
+    lvar_in_vec->type = get_type(type_tkn, ptr_cnt);
+    lvar_in_vec->name = ident_tkn->str;
+    lvar_in_vec->len = ident_tkn->len;
+    lvar_in_vec->array_size = array_size;
+    if (array_size == 0) {
+        lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size;
+        cur_func->variable_offset += lvar_in_vec->type->size;
+    } else {
+        lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size * array_size;
+        cur_func->variable_offset += lvar_in_vec->type->size * array_size;
+    }
+    node->offset = lvar_in_vec->offset;
+    node->type = lvar_in_vec->type;
+    vec_push(cur_func->lvar_vec, lvar_in_vec);
+}
+
+void parse_array_decl(Node *node, Token *type_tkn, Token *ident_tkn, int ptr_cnt) {
+    int array_size = expect_number(); // TODO: can be nothing
+    node->array_size = array_size;
+    expect(']');
+    if (consume("=")) {
+        parse_array_init(node);
+    } else {
+        node->kind = ND_LVARDECL;
+    }
+    set_new_lvar(node, type_tkn, ident_tkn, ptr_cnt, array_size);
+}
+
 Node *parse_func_call(Token *tok) {
     Function *func = find_func(tok, NULL); // TODO: arg type check
     if (!func) {
@@ -254,15 +316,7 @@ void parse_lval_ref(Node *node, Token *tok, LVar *lvar_in_vec) {
 void parse_lval_decl(Node *node, Token *tok, Token *type, int ptr_cnt) {
     if (type && strncmp(token->str, "=", token->len) != 0)
         node->kind = ND_LVARDECL;
-    LVar *lvar_in_vec = calloc(1, sizeof(LVar));
-    lvar_in_vec->type = get_type(type, ptr_cnt);
-    lvar_in_vec->name = tok->str;
-    lvar_in_vec->len = tok->len;
-    lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size;
-    node->offset = lvar_in_vec->offset;
-    node->type = lvar_in_vec->type;
-    cur_func->variable_offset += lvar_in_vec->type->size;
-    vec_push(cur_func->lvar_vec, lvar_in_vec);
+    set_new_lvar(node, type, tok, ptr_cnt, 0);
 }
 
 Node *parse_lval(Token *tok, Token *type, int ptr_cnt) {
@@ -271,6 +325,18 @@ Node *parse_lval(Token *tok, Token *type, int ptr_cnt) {
     node->kind = ND_LVAR;
     node->name = tok->str;
     node->name_len = tok->len;
+
+    if (consume("[")) {
+        if (!type) {
+            if (!lvar_in_vec)
+                error("variable [%.*s] is not defined\n", tok->len, tok->str);
+            parse_array_ref(node, tok, lvar_in_vec);
+        } else {
+            parse_array_decl(node, type, tok, ptr_cnt);
+        }
+        return node;
+    }
+
     if (lvar_in_vec) {
         parse_lval_ref(node, tok, lvar_in_vec);
     } else {

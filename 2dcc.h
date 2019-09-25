@@ -54,6 +54,8 @@ struct LVar {
   Type type;
   char *name;
   int len;
+
+  int array_size;
   int offset;
 };
 
@@ -112,6 +114,8 @@ typedef enum {
     ND_ASSIGN,
     ND_LVAR,
     ND_LVARDECL,
+    ND_LARRAY,
+    ND_LARRAY_INIT,
     ND_ARG,
     ND_RETURN,
     ND_IF,
@@ -123,7 +127,6 @@ typedef enum {
     ND_CALL,
     ND_ADDR,
     ND_DEREF,
-
 } NodeKind;
 
 typedef struct Node Node;
@@ -164,6 +167,9 @@ struct Node {
     bool has_return;
 
     Type *type; // value or expr type to validate
+
+    Vector *array_init; // vector<Node*>
+    int array_size;
 
 };
 Node *code[100];
