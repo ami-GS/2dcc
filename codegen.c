@@ -27,6 +27,15 @@ void gen_call_epilogue() {
     printf("  ret\n");
 }
 
+void gen_assign(Node *lhs, Node *rhs) {
+    gen_lval(lhs);
+    gen(rhs);
+    printf("  pop rdi\n"); // result of gen()
+    printf("  pop rax\n"); // addr
+    printf("  mov [rax], rdi\n");
+    printf("  push rdi\n");
+}
+
 void gen(Node *node) {
     if (!node) {
         return;
@@ -56,12 +65,7 @@ void gen(Node *node) {
             gen_rvalue_epilogue();
             return;
         case ND_ASSIGN:
-            gen_lval(node->lhs);
-            gen(node->rhs);
-            printf("  pop rdi\n"); // result of gen()
-            printf("  pop rax\n"); // addr
-            printf("  mov [rax], rdi\n");
-            printf("  push rdi\n");
+            gen_assign(node->lhs, node->rhs);
             return;
         case ND_IF:
             gen(node->cond);
