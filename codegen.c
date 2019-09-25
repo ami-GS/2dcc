@@ -48,6 +48,13 @@ void gen(Node *node) {
         case ND_ARG:
             gen_arg(node);
             return;
+        case ND_ADDR:
+            gen_lval(node->lhs);
+            return;
+        case ND_DEREF:
+            gen(node->lhs);
+            gen_rvalue_epilogue();
+            return;
         case ND_ASSIGN:
             gen_lval(node->lhs);
             gen(node->rhs);
@@ -137,15 +144,6 @@ void gen(Node *node) {
             if (node->ret_type.type != VOID) {
                 printf("  push rdi\n");
             }
-            return;
-        case ND_ADDR:
-            gen_lval(node->lhs);
-            return;
-        case ND_DEREF:
-            gen(node->lhs);
-            printf("  pop rax\n");
-            printf("  mov rax, [rax]\n");
-            printf("  push rax\n");
             return;
         case ND_RETURN:
             gen(node->lhs);
