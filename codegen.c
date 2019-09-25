@@ -20,7 +20,7 @@ void gen_arg(Node *node) {
     printf("  push rax\n");
 }
 
-void gen_call_prologue() {
+void gen_call_epilogue() {
     printf("  pop rax\n");
     printf("  mov rsp, rbp\n");
     printf("  pop rbp\n");
@@ -121,7 +121,7 @@ void gen(Node *node) {
             }
             gen(node->body);
             if (!node->has_return)
-                gen_call_prologue();
+                gen_call_epilogue();
             return;
         case ND_CALL:
             for (int i = node->call_arg_vec->len-1; 0 <= i; i--) {
@@ -149,7 +149,7 @@ void gen(Node *node) {
             return;
         case ND_RETURN:
             gen(node->lhs);
-            gen_call_prologue();
+            gen_call_epilogue();
             return;
     }
 
