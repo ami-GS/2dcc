@@ -21,6 +21,25 @@ Type *get_actual_type(Node *node) {
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
+    if (kind == ND_DEREF) {
+        node->type = lhs->type->pointer_to;
+    } else{
+        // TODO: type check
+        if (lhs && rhs) {
+            if (lhs->type->type == PTR || rhs->type->type == PTR) {
+                if (lhs->type->type == PTR) {
+                    node->type = lhs->type;
+                } else {
+                    node->type = rhs->type;
+                }
+            } else if (lhs->type->type == rhs->type->type) {
+                node->type = lhs->type;
+            } else {
+                //error
+            }
+        }
+    }
+
     node->lhs = lhs;
     node->rhs = rhs;
     return node;
@@ -29,7 +48,12 @@ Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
 Node *new_node_num(int val) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_NUM;
+    node->name = token->str;
+    node->name_len = token->len;
     node->val = val;
+    node->type = calloc(1, sizeof(Type));
+    node->type->type = INT;
+    node->type->size = 8;
     node->ret_type.type = INT;
     node->ret_type.size = 8; // TODO: fix
     return node;
@@ -68,9 +92,10 @@ int strtype_to_int(char *strtype, int len) {
         return INT;
     } else if (strncmp(strtype, "char", 4) == 0) {
         return CHAR;
-    } else if (strncmp(strtype, "void", 3) == 0) {
+    } else if (strncmp(strtype, "void", 4) == 0) {
         return VOID;
     }
+    error("unknown data type %.*s\n", len, strtype);
 }
 
 int type_to_sizeof(int type) {
@@ -138,7 +163,7 @@ Token *consume_type() {
 
 void expect(char op) {
     if (token->kind != TK_RESERVED || token->str[0] != op)
-        error("'%c' is expected", op);
+        error("[%c] is expected, got [%.*s]\n", op, token->len, token->str);
     token = token->next;
 }
 
@@ -231,6 +256,7 @@ Node *parse_func_call(Token *tok) {
     node->name = tok->str;
     node->name_len = tok->len;
     node->ret_type = func->ret_type;
+    node->type = &func->ret_type;
     return node;
 }
 
@@ -277,6 +303,7 @@ Node *parse_func_decl(Token *type, Token *tok) {
         func_vec = new_vec();
     }
     Function *func = calloc(1, sizeof(Function));
+    func->lvar_vec = new_vec();
     func->ret_type.type = strtype_to_int(type->str, type->len);
     func->ret_type.size = type_to_sizeof(func->ret_type.type); // TODO: remove
     func->arg_vec = arg_vec;

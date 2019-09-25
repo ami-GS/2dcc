@@ -51,7 +51,7 @@ struct Type {
 
 struct LVar {
   LVar *next;
-  Type type;
+  Type *type;
   char *name;
   int len;
 
