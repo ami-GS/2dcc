@@ -40,6 +40,7 @@ enum {
     INT,
     CHAR,
     PTR,
+    ARRAY,
 };
 
 struct Type {
@@ -55,6 +56,7 @@ struct LVar {
   char *name;
   int len;
 
+  Vector *array_sizes;
   int array_size;
   int offset;
 };
@@ -117,6 +119,7 @@ typedef enum {
     ND_LARRAY,
     ND_LARRAY_INIT,
     ND_ARG,
+    ND_ARG_ARRAY,
     ND_RETURN,
     ND_IF,
     ND_ELSE,
@@ -169,6 +172,8 @@ struct Node {
     Type *type; // value or expr type to validate
 
     Vector *array_init; // vector<Node*>
+    Vector *array_sizes;
+    Vector *array_idx_exprs;
     int array_size;
 
 };

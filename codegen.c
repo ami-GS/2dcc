@@ -14,8 +14,23 @@ void gen_lval(Node *node) {
 
     switch (node->kind) {
         case ND_DEREF: case ND_LARRAY: case ND_LARRAY_INIT:
-            if (node->kind != ND_LARRAY_INIT)
+            if (node->kind == ND_DEREF) {
                 gen(node->lhs);
+            } else if (node->kind == ND_LARRAY) {
+                int offst = 1;
+                for (int i = node->array_sizes->len - 1; i >= 0; i--) {
+                    gen(vec_get(node->array_idx_exprs, i));
+                    // add if size is over 2
+                    if (node->array_sizes->len - i - 1 >= 1) {
+                        printf("  pop rdi\n");
+                        printf("  imul rdi, %d\n", offst);
+                        printf("  pop rax\n");
+                        printf("  add rax, rdi\n");
+                        printf("  push rax\n");
+                    }
+                    offst *= (int)vec_get(node->array_sizes, i);
+                }
+            }
             printf("  pop rdi\n");
             printf("  imul rdi, %d\n", node->type->size);
             printf("  add rdi, %d\n", node->offset);
@@ -69,7 +84,9 @@ void gen(Node *node) {
             return;
         case ND_LVAR:
             gen_lval(node);
-            gen_rvalue_epilogue();
+            if (node->type->type != ARRAY) {
+                gen_rvalue_epilogue();
+            }
             return;
         case ND_LARRAY_INIT:
             for (int i = 0; i < node->array_size; i++) {
@@ -84,6 +101,16 @@ void gen(Node *node) {
             return;
         case ND_ARG:
             gen_arg(node);
+            return;
+        case ND_ARG_ARRAY:
+            gen_arg(node);
+            gen(vec_get(node->array_idx_exprs, 0));
+            printf("  pop rdi\n");
+            printf("  imul rdi, %d\n", node->type->size);
+            printf("  pop rax\n"); // stack by arg
+            printf("  sub rax, rdi\n");
+            printf("  push rax\n");
+            gen_rvalue_epilogue();
             return;
         case ND_ADDR:
             gen_lval(node->lhs);
