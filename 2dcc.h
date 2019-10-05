@@ -119,7 +119,6 @@ typedef enum {
     ND_LARRAY,
     ND_LARRAY_INIT,
     ND_ARG,
-    ND_ARG_ARRAY,
     ND_RETURN,
     ND_IF,
     ND_ELSE,

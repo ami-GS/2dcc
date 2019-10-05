@@ -199,21 +199,11 @@ Vector* parse_array_sizes_or_indices(Token *type) {
     return array_sizes_or_indices;
 }
 
-void parse_array_ref(Node *node, Token *ident_tkn, LVar *lvar_in_vec, Vector *array_indices) {
+void parse_array_ref(Node *node, LVar *lvar_in_vec, Vector *array_indices) {
     node->array_idx_exprs = array_indices;
     node->kind = ND_LARRAY;
-    node->offset = lvar_in_vec->offset;
-    node->type = lvar_in_vec->type;
     node->array_size = lvar_in_vec->array_size;
     node->array_sizes = lvar_in_vec->array_sizes;
-}
-
-Node *parse_arg_array_ref(Node *node, Token *tok, Arg *arg, Vector* array_indices) {
-    node->array_idx_exprs = array_indices;
-    node->kind = ND_ARG_ARRAY;
-    node->offset = arg->offset;
-    node->type = arg->type;
-    return node;
 }
 
 void parse_array_init(Node *node) {
@@ -274,7 +264,6 @@ void parse_array_decl(Node *node, Token *type_tkn, int ptr_cnt, Vector *array_si
 
     node->type = type_tmp;
     node->array_sizes = array_sizes;
-    node->array_size = 1;
     for (int i = 0; i < array_sizes->len; i++) {
         node->array_size *= (int)vec_get(array_sizes, i);
     }
@@ -284,7 +273,6 @@ void parse_array_decl(Node *node, Token *type_tkn, int ptr_cnt, Vector *array_si
     } else {
         node->kind = ND_LVARDECL;
     }
-    set_new_lvar(node);
 }
 
 Node *parse_func_call(Token *tok) {
@@ -372,29 +360,40 @@ Node *parse_func_decl(Token *type, Token *tok) {
     return node;
 }
 
-Node *parse_arg_ref(Node *node, Token *tok, Arg *arg) {
+void parse_arg_ref(Node *node, Arg *arg, Vector* array_indices) {
     node->kind = ND_ARG;
+    node->array_idx_exprs = array_indices;
     node->offset = arg->offset;
     node->type = arg->type;
-    return node;
 }
 
-void parse_lval_ref(Node *node, Token *tok, LVar *lvar_in_vec) {
+void parse_lval_ref(Node *node, LVar *lvar_in_vec) {
     node->offset = lvar_in_vec->offset;
     node->type = lvar_in_vec->type;
 }
 
-void parse_lval_decl(Node *node, Token *type, int ptr_cnt) {
-    node->array_size = 1;
-    node->type = get_type(type, ptr_cnt);
-    fprintf(stderr, "before\n");
-    if (cur_func) {
-        set_new_lvar(node);
-        node->kind = ND_LVARDECL;
-    set_new_lvar(node, type, tok, ptr_cnt, 0);
+void parse_lvar_ref(Node *node, LVar *lvar_in_vec, Vector *array_sizes_or_indices) {
+    if (array_sizes_or_indices)
+        parse_array_ref(node, lvar_in_vec, array_sizes_or_indices);
+    parse_lval_ref(node, lvar_in_vec);
 }
 
-Node *parse_lval(Token *tok, Token *type, int ptr_cnt) {
+void parse_lval_decl(Node *node, Token *type, int ptr_cnt) {
+    node->type = get_type(type, ptr_cnt);
+    node->kind = ND_LVARDECL;
+}
+
+void parse_lvar_decl(Node *node, Token *type, int ptr_cnt, Vector *array_sizes_or_indices) {
+    node->array_size = 1;
+    if (array_sizes_or_indices) {
+        parse_array_decl(node, type, ptr_cnt, array_sizes_or_indices);
+    } else {
+        parse_lval_decl(node, type, ptr_cnt);
+    }
+    set_new_lvar(node);
+}
+
+Node *parse_var(Token *tok, Token *type, int ptr_cnt) {
     LVar *lvar_in_vec = find_lvar(tok);
     Arg *arg = find_arg(tok);
     Node *node = calloc(1, sizeof(Node));
@@ -404,22 +403,14 @@ Node *parse_lval(Token *tok, Token *type, int ptr_cnt) {
 
     Vector *array_sizes_or_indices = parse_array_sizes_or_indices(type);
     if (lvar_in_vec) {
-        if (array_sizes_or_indices)
-            parse_array_ref(node, tok, lvar_in_vec, array_sizes_or_indices);
-        else
-            parse_lval_ref(node, tok, lvar_in_vec);
+        parse_lvar_ref(node, lvar_in_vec, array_sizes_or_indices);
     } else if (arg) {
-        if (array_sizes_or_indices)
-            parse_arg_array_ref(node, tok, arg, array_sizes_or_indices);
-        else
-            parse_arg_ref(node, tok, arg);
+        parse_arg_ref(node, arg, array_sizes_or_indices);
     } else {
         if (!type)
             error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
-        if (array_sizes_or_indices)
-            parse_array_decl(node, type, ptr_cnt, array_sizes_or_indices);
-        else
-            parse_lval_decl(node, type, ptr_cnt);
+        parse_lvar_decl(node, type, ptr_cnt, array_sizes_or_indices);
+    }
     }
     return node;
 }
@@ -440,7 +431,7 @@ Node *parse_identifier() {
             }
             return parse_func_decl(type, tok);
         }
-        return parse_lval(tok, type, ptr_cnt);
+        return parse_var(tok, type, ptr_cnt);
     }
 }
 

@@ -101,16 +101,15 @@ void gen(Node *node) {
             return;
         case ND_ARG:
             gen_arg(node);
-            return;
-        case ND_ARG_ARRAY:
-            gen_arg(node);
-            gen(vec_get(node->array_idx_exprs, 0));
-            printf("  pop rdi\n");
-            printf("  imul rdi, %d\n", node->type->size);
-            printf("  pop rax\n"); // stack by arg
-            printf("  sub rax, rdi\n");
-            printf("  push rax\n");
-            gen_rvalue_epilogue();
+            if (node->array_idx_exprs) {
+                gen(vec_get(node->array_idx_exprs, 0));
+                printf("  pop rdi\n");
+                printf("  imul rdi, %d\n", node->type->size);
+                printf("  pop rax\n"); // stack by arg
+                printf("  sub rax, rdi\n");
+                printf("  push rax\n");
+                gen_rvalue_epilogue();
+            }
             return;
         case ND_ADDR:
             gen_lval(node->lhs);
