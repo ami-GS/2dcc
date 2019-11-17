@@ -246,5 +246,13 @@ int b = 37;
 int main() {
     return b + 63;
 }"
+try 100 "
+char func(char* b) {
+    return b[3];
+}
+int main() {
+    char b[5] = \"abcde\";
+    return func(b);
+}"
 
 echo OK

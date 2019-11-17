@@ -70,6 +70,15 @@ void gen_assign(Node *lhs, Node *rhs) {
     printf("  push rdi\n");
 }
 
+void gen_assign_char(Node *lhs, char* c) {
+    gen_lval(lhs);
+    printf("  push %d\n", c);
+    printf("  pop rdi\n"); // result of gen()
+    printf("  pop rax\n"); // addr
+    printf("  mov [rax], dil\n");
+    printf("  push rdi\n");
+}
+
 void gen(Node *node) {
     if (!node) {
         return;
@@ -79,6 +88,10 @@ void gen(Node *node) {
     switch (node->kind) {
         case ND_NUM:
             printf("  push %d\n", node->val);
+            return;
+        case ND_STRING:
+            printf(".LC%d:\n", local_char_cnt++);
+            printf("  .string %.*s\n", node->str_val_len, node->str_val);
             return;
         case ND_GVARDECL:
             printf("%.*s:\n", node->name_len, node->name);
@@ -110,9 +123,16 @@ void gen(Node *node) {
             }
             return;
         case ND_LARRAY_INIT:
-            for (int i = 0; i < node->array_size; i++) {
-                printf("  push %d\n", i);
-                gen_assign(node, vec_get(node->array_init, i));
+            if (node->str_val) {
+                for (int i = 1; i < node->str_val_len-1; i++) {
+                    printf("  push %d\n", i-1);
+                    gen_assign_char(node, node->str_val[i]);
+                }
+            } else {
+                for (int i = 0; i < node->array_size; i++) {
+                    printf("  push %d\n", i);
+                    gen_assign(node, vec_get(node->array_init, i));
+                }
             }
             return;
         case ND_LARRAY:

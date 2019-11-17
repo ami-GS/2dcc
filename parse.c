@@ -15,6 +15,22 @@ Type *get_actual_type(Type *type) {
     return type;
 }
 
+int type_to_sizeof(int type) {
+    switch (type) {
+    case VOID:
+        return 0;
+    case INT:
+        return 4;
+    case CHAR:
+        return 1;
+    case PTR:
+        return 8;
+    case ARRAY:
+        return 8;
+    }
+    error("unknown data type %d\n", type);
+}
+
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
@@ -53,6 +69,21 @@ Node *new_node_num(int val) {
     node->type->size = 8;
     node->ret_type.type = INT;
     node->ret_type.size = 8; // TODO: fix
+    return node;
+}
+
+Node *new_node_string(char* str, int len) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_STRING;
+    node->name = token->str; // TODO this is bug
+    node->name_len = token->len; // TODO this is bug
+    node->str_val = str;
+    node->str_val_len = len;
+    node->type = calloc(1, sizeof(Type));
+    node->type->type = ARRAY;
+    node->type->size = type_to_sizeof(ARRAY);
+    node->ret_type.type = ARRAY;
+    node->ret_type.size = type_to_sizeof(ARRAY); // TODO: fix
     return node;
 }
 
@@ -106,22 +137,6 @@ int strtype_to_int(char *strtype, int len) {
         return VOID;
     }
     error("unknown data type %.*s\n", len, strtype);
-}
-
-int type_to_sizeof(int type) {
-    switch (type) {
-    case VOID:
-        return 0;
-    case INT:
-        return 8;
-    case CHAR:
-        return 1;
-    case PTR:
-        return 8;
-    case ARRAY:
-        return 8;
-    }
-    error("unknown data type %d\n", type);
 }
 
 Type* get_type(Token *type_token, int ptr_cnt) {
@@ -178,6 +193,15 @@ void expect(char op) {
     if (token->kind != TK_RESERVED || token->str[0] != op)
         error("[%c] is expected, got [%.*s]\n", op, token->len, token->str);
     token = token->next;
+}
+
+int expect_string(char** str) {
+    if (token->kind != TK_STRING)
+        error("not a string");
+    *str = token->str;
+    int len = token->len;
+    token = token->next;
+    return len;
 }
 
 int expect_number() {
@@ -497,6 +521,18 @@ Node *parse_identifier() {
     }
 }
 
+Node* parse_immediate() {
+    Node* node;
+    if (token->kind == TK_STRING) {
+        char* str;
+        int len = expect_string(&str);
+        node = new_node_string(str, len);
+    } else if (token->kind == TK_NUM) {
+        node = new_node_num(expect_number());
+    }
+    return node;
+}
+
 Node *primary() {
     Node *node;
     if (consume("(")) {
@@ -504,12 +540,10 @@ Node *primary() {
         expect(')');
         return node;
     }
-
     node = parse_identifier();
     if (node)
         return node;
-
-    return new_node_num(expect_number());
+    return parse_immediate();
 }
 
 Node *unary() {

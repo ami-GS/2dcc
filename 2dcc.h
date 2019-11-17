@@ -29,6 +29,7 @@ typedef enum {
     TK_VOID,
     TK_INT,
     TK_CHAR,
+    TK_STRING,
     TK_SIZEOF,
     TK_EOF,
 } TokenKind;
@@ -111,6 +112,7 @@ typedef enum {
     ND_MUL,
     ND_DIV,
     ND_NUM,
+    ND_STRING,
     ND_EQU,
     ND_NEQ,
     ND_GT,
@@ -142,6 +144,8 @@ struct Node {
     Node *lhs;
     Node *rhs;
     int val;
+    char* str_val;
+    int str_val_len;
     int offset; // offset from base pointer rbp
 
     Node *cond;
