@@ -256,26 +256,37 @@ void parse_array_ref(Node *node, LVar *lvar_in_vec, Vector *array_indices) {
     node->array_sizes = lvar_in_vec->array_sizes;
 }
 
-void parse_array_init(Node *node) {
+void parse_array_init(Node *node, Vector *array_sizes) {
     node->kind = ND_LARRAY_INIT;
-    expect('{');
-    // type should be changed
-    Vector* array_init_nodes = new_vec();
-    while (!consume("}")) {
-            if (array_init_nodes->len != 0) {
-                expect(',');
-            }
-            vec_push(array_init_nodes, expr());
-    }
-    if (array_init_nodes->len == 0) {
-        for (int i = 0; i < node->array_size; i++) {
-            Node *zero = calloc(1, sizeof(Node));
-            zero->kind = ND_NUM;
-            zero->val = 0;
-            vec_push(array_init_nodes, zero);
+    if (consume("{")) {
+        Vector* array_init_nodes = new_vec();
+        // type should be changed
+        while (!consume("}")) {
+                if (array_init_nodes->len != 0) {
+                    expect(',');
+                }
+                // TODO: needs better way
+                if (cur_func)
+                    vec_push(array_init_nodes, expr());
+                else
+                    vec_push(array_init_nodes, expect_number()); // const_expr()?
         }
+        if (array_init_nodes->len == 0) {
+            for (int i = 0; i < node->array_size; i++) {
+                Node *zero = calloc(1, sizeof(Node));
+                zero->kind = ND_NUM;
+                zero->val = 0;
+                vec_push(array_init_nodes, zero);
+            }
+        }
+        node->array_init = array_init_nodes;
+    } else if (token->kind == TK_STRING) {
+        // TODO: care about multi dimention;
+        int elm_num = vec_get(array_sizes, 0);
+        if (vec_get(array_sizes, 0) < token->len-2)
+            error("string length must be bellow declared array size [%d]", elm_num);
+        node->str_val_len = expect_string(&(node->str_val));
     }
-    node->array_init = array_init_nodes;
 }
 
 void set_new_lvar(Node *node) {
@@ -306,9 +317,18 @@ void set_new_gvar(Node *node) {
 }
 
 void parse_array_decl(Node *node, Token *type_tkn, int ptr_cnt, Vector *array_sizes) {
+    if (consume("=")) {
+        parse_array_init(node, array_sizes);
+        //if (array_sizes != 0 && array_sizes->len < num)
+        //    error("the number of array initialize element are bigger than specified value");
+    }
+    for (int i = 0; i < array_sizes->len; i++) {
+        node->array_size *= (int)vec_get(array_sizes, i);
+    }
     Type *type_tmp = calloc(1, sizeof(Type));
     type_tmp->type = strtype_to_int(type_tkn->str, type_tkn->len);
     type_tmp->size = type_to_sizeof(type_tmp->type);
+
     for (int i = 0; i < array_sizes->len; i++) {
         Type *ptr_type = calloc(1, sizeof(Type));
         ptr_type->pointer_to = type_tmp;
@@ -327,15 +347,6 @@ void parse_array_decl(Node *node, Token *type_tkn, int ptr_cnt, Vector *array_si
 
     node->type = type_tmp;
     node->array_sizes = array_sizes;
-    for (int i = 0; i < array_sizes->len; i++) {
-        node->array_size *= (int)vec_get(array_sizes, i);
-    }
-
-    if (consume("=")) {
-        parse_array_init(node);
-    } else {
-        node->kind = ND_LVARDECL;
-    }
 }
 
 Node *parse_func_call(Token *tok) {
@@ -441,9 +452,15 @@ void parse_lvar_ref(Node *node, LVar *lvar_in_vec, Vector *array_sizes_or_indice
     parse_lval_ref(node, lvar_in_vec);
 }
 
-void parse_lval_decl(Node *node, Token *type, int ptr_cnt) {
-    node->type = get_type(type, ptr_cnt);
+void parse_lvar_decl(Node *node, Token *type, int ptr_cnt, Vector *array_sizes_or_indices) {
     node->kind = ND_LVARDECL;
+    node->array_size = 1;
+    if (array_sizes_or_indices) {
+        parse_array_decl(node, type, ptr_cnt, array_sizes_or_indices);
+    } else {
+        node->type = get_type(type, ptr_cnt);
+    }
+    set_new_lvar(node);
 }
 
 void parse_gvar_ref(Node *node, LVar *gvar, Vector *array_sizes_or_indices) {
