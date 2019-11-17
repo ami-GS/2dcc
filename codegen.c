@@ -2,13 +2,9 @@
 #include "2dcc.h"
 
 void gen_lval(Node *node) {
-    // This is hacky way...
-    if (node->kind == ND_DEREF) {
-        // e.g. *a = &b;
-        gen(node->lhs);
-        return;
-    }
-    if (node->kind != ND_LVAR && node->kind != ND_LARRAY && node->kind == ND_DEREF) {
+    if (node->kind != ND_LVAR && node->kind != ND_LARRAY &&
+        node->kind != ND_LVARDECL && node->kind != ND_LARRAY_INIT &&
+        node->kind != ND_DEREF) {
         error("not a left variable [%s] %d", node->name, node->kind);
     }
 
@@ -16,6 +12,7 @@ void gen_lval(Node *node) {
         case ND_DEREF: case ND_LARRAY: case ND_LARRAY_INIT:
             if (node->kind == ND_DEREF) {
                 gen(node->lhs);
+                return;
             } else if (node->kind == ND_LARRAY) {
                 int offst = 1;
                 for (int i = node->array_sizes->len - 1; i >= 0; i--) {
@@ -31,8 +28,8 @@ void gen_lval(Node *node) {
                     offst *= (int)vec_get(node->array_sizes, i);
                 }
             }
-            printf("  pop rdi\n");
-            printf("  imul rdi, %d\n", node->type->size);
+            printf("  pop rdi # %d %.*s\n", node->kind, node->name_len, node->name);
+            printf("  imul rdi, %d\n", get_actual_type(node->type)->size);
             printf("  add rdi, %d\n", node->offset);
             break;
         default:
@@ -44,13 +41,21 @@ void gen_lval(Node *node) {
 }
 
 void gen_arg(Node *node) {
+    // qward for stack machine
     printf("  mov rax, [rbp+%d]\n", 16 + node->offset);
     printf("  push rax\n");
 }
 
-void gen_rvalue_epilogue() {
+void gen_rvalue_epilogue(Type *type) {
     printf("  pop rax\n");
-    printf("  mov rax, [rax]\n");
+    int ty = type->type;
+    if (ty == CHAR) {
+        printf("  movsx rax, BYTE PTR [rax]\n"); // movzx
+    } else if (ty == INT) {
+        printf("  mov eax, DWORD PTR [rax]\n");
+    } else {
+        printf("  mov rax, [rax]\n");
+    }
     printf("  push rax\n");
 }
 
@@ -66,7 +71,17 @@ void gen_assign(Node *lhs, Node *rhs) {
     gen(rhs);
     printf("  pop rdi\n"); // result of gen()
     printf("  pop rax\n"); // addr
-    printf("  mov [rax], rdi\n");
+
+    // TODO: refactoring
+    if (lhs->type->type == PTR && rhs->kind == ND_ADDR) {
+        printf("  mov [rax], rdi\n");
+    } else if (lhs->type->type == CHAR || (get_actual_type(lhs->type)->type == CHAR)) {
+        printf("  mov [rax], dil\n");
+    } else if (lhs->type->type == INT || (get_actual_type(lhs->type)->type == INT)) {
+        printf("  mov [rax], edi\n");
+    } else {
+        printf("  mov [rax], rdi\n");
+    }
     printf("  push rdi\n");
 }
 
@@ -85,6 +100,7 @@ void gen(Node *node) {
     }
 
     static int if_cnt = 0;
+    static int local_char_cnt = 0;
     switch (node->kind) {
         case ND_NUM:
             printf("  push %d\n", node->val);
@@ -119,7 +135,7 @@ void gen(Node *node) {
         case ND_LVAR:
             gen_lval(node);
             if (node->type->type != ARRAY) {
-                gen_rvalue_epilogue();
+                gen_rvalue_epilogue(node->type);
             }
             return;
         case ND_LARRAY_INIT:
@@ -138,18 +154,18 @@ void gen(Node *node) {
         case ND_LARRAY:
             // e.g. a[b + c] = 100;
             gen_lval(node); // a
-            gen_rvalue_epilogue();
+            gen_rvalue_epilogue(node->type);
             return;
         case ND_ARG:
             gen_arg(node);
             if (node->array_idx_exprs) {
                 gen(vec_get(node->array_idx_exprs, 0));
                 printf("  pop rdi\n");
-                printf("  imul rdi, %d\n", node->type->size);
+                printf("  imul rdi, %d\n", get_actual_type(node->type)->size);
                 printf("  pop rax\n"); // stack by arg
                 printf("  sub rax, rdi\n");
                 printf("  push rax\n");
-                gen_rvalue_epilogue();
+                gen_rvalue_epilogue(node->type);
             }
             return;
         case ND_ADDR:
@@ -157,7 +173,7 @@ void gen(Node *node) {
             return;
         case ND_DEREF:
             gen(node->lhs);
-            gen_rvalue_epilogue();
+            gen_rvalue_epilogue(node->type);
             return;
         case ND_ASSIGN:
             gen_assign(node->lhs, node->rhs);
