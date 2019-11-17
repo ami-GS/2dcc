@@ -193,3 +193,4 @@ void program();
 void error(char *fmt, ...);
 void error_at(char *loc, char *fmt, ...);
 bool at_eof();
+Type *get_actual_type(Type *type);
