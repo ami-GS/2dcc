@@ -66,9 +66,9 @@ Node *new_node_num(int val) {
     node->val = val;
     node->type = calloc(1, sizeof(Type));
     node->type->type = INT;
-    node->type->size = 8;
+    node->type->size = type_to_sizeof(INT);
     node->ret_type.type = INT;
-    node->ret_type.size = 8; // TODO: fix
+    node->ret_type.size = type_to_sizeof(INT); // TODO: fix
     return node;
 }
 
@@ -296,8 +296,13 @@ void set_new_lvar(Node *node) {
     lvar_in_vec->len = node->name_len;
     lvar_in_vec->array_size = node->array_size;
     lvar_in_vec->array_sizes = node->array_sizes;
-    lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size * node->array_size;
-    cur_func->variable_offset += lvar_in_vec->type->size * node->array_size;
+    if (lvar_in_vec->type->type == ARRAY) {
+        lvar_in_vec->offset = cur_func->variable_offset + type_to_sizeof(get_actual_type(lvar_in_vec->type)->type) * node->array_size;
+        cur_func->variable_offset += type_to_sizeof(get_actual_type(lvar_in_vec->type)->type) * node->array_size;
+    } else {
+        lvar_in_vec->offset = cur_func->variable_offset + lvar_in_vec->type->size * node->array_size;
+        cur_func->variable_offset += lvar_in_vec->type->size * node->array_size;
+    }
     node->offset = lvar_in_vec->offset;
     vec_push(cur_func->lvar_vec, lvar_in_vec);
 }
@@ -395,7 +400,8 @@ Node *parse_func_decl(Token *type, Token *tok) {
         arg->len = arg_ident->len;
         arg->type = get_type(arg_type, ptr_cnt);
         arg->offset = arg_offset;
-        arg_offset += type_to_sizeof(arg->type->type);
+        //arg_offset += type_to_sizeof(arg->type->type);
+        arg_offset += 8; // TODO: currently for stack
         vec_push(arg_vec, arg);
     }
 
@@ -444,6 +450,7 @@ void parse_arg_ref(Node *node, Arg *arg, Vector* array_indices) {
 void parse_lval_ref(Node *node, LVar *lvar_in_vec) {
     node->offset = lvar_in_vec->offset;
     node->type = lvar_in_vec->type;
+    node->array_size = lvar_in_vec->array_size;
 }
 
 void parse_lvar_ref(Node *node, LVar *lvar_in_vec, Vector *array_sizes_or_indices) {
