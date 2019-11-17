@@ -51,6 +51,9 @@ Token *tokenize(char *p) {
         } else if (strncmp(p, "void", 4) == 0 && !is_alnum(p[4])) {
             cur = new_token(TK_VOID, cur, p, 4);
             p += 4;
+        } else if (strncmp(p, "sizeof", 6) == 0 && !is_alnum(p[6])) {
+            cur = new_token(TK_SIZEOF, cur, p, 6);
+            p += 6;
         }
 
         if (('a' <= *p && *p <= 'z') || ('A' <= *p && *p <= 'Z')) {

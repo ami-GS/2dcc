@@ -29,6 +29,7 @@ typedef enum {
     TK_VOID,
     TK_INT,
     TK_CHAR,
+    TK_SIZEOF,
     TK_EOF,
 } TokenKind;
 

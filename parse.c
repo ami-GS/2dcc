@@ -4,15 +4,12 @@
 #include <string.h>
 #include "2dcc.h"
 
-Type *get_actual_type(Node *node) {
-    if (!node) {
-        return NULL;
-    }
-    Type *type = node->type;
+Type *get_actual_type(Type *type) {
     if (!type) {
         return NULL;
     }
-    while (type->type == PTR) {
+
+    while (type->type == PTR || type->type == ARRAY) {
         type = type->pointer_to;
     }
     return type;
@@ -135,7 +132,8 @@ bool consume(char *op) {
         token->kind != TK_IF &&
         token->kind != TK_ELSE &&
         token->kind != TK_WHILE &&
-        token->kind != TK_FOR) ||
+        token->kind != TK_FOR &&
+        token->kind != TK_SIZEOF) ||
         strlen(op) != token->len ||
         strncmp(token->str, op, token->len))
         return false;
@@ -179,6 +177,21 @@ int expect_number() {
 
 Node *expr();
 Node *stmt();
+Node *unary();
+
+Vector* parse_sizeof() {
+    Node* node = new_node_num(0);
+    Node* target = unary();
+    if (target->type->type == ARRAY) {
+        if (target->array_idx_exprs)
+            node->val = get_actual_type(target->type)->size;
+        else
+            node->val = get_actual_type(target->type)->size * target->array_size;
+    } else {
+        node->val = target->type->size;
+    }
+    return node;
+}
 
 Vector* parse_array_sizes_or_indices(Token *type) {
     Vector *array_sizes_or_indices = (Vector*)NULL;
@@ -459,6 +472,8 @@ Node *unary() {
         return new_node(ND_DEREF, unary(), NULL);
     if (consume("&"))
         return new_node(ND_ADDR, unary(), NULL);
+    if (consume("sizeof"))
+        return parse_sizeof();
     return primary();
 }
 

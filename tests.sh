@@ -233,7 +233,12 @@ int pppp(int *array, int C) {
 int main() {
     int array[3] = {1,2,3};
     return pppp(array, 9);
-}
-"
+}"
+
+try 6 "
+int main() {
+    int a[3] = {1,2,3};
+    return sizeof(a) / sizeof(a[0]) + sizeof a / sizeof a[0];
+}"
 
 echo OK
