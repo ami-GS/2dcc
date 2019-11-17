@@ -90,6 +90,7 @@ struct Function {
 
 Vector *func_vec;
 Function *cur_func;
+Vector *global_vars;
 
 typedef struct Token Token;
 
@@ -117,6 +118,8 @@ typedef enum {
     ND_ASSIGN,
     ND_LVAR,
     ND_LVARDECL,
+    ND_GVAR,
+    ND_GVARDECL,
     ND_LARRAY,
     ND_LARRAY_INIT,
     ND_ARG,
@@ -176,6 +179,7 @@ struct Node {
     Vector *array_idx_exprs;
     int array_size;
 
+    bool has_global_init;
 };
 Node *code[100];
 

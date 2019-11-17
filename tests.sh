@@ -240,5 +240,11 @@ int main() {
     int a[3] = {1,2,3};
     return sizeof(a) / sizeof(a[0]) + sizeof a / sizeof a[0];
 }"
+try 100 "
+int a = 36;
+int b = 37;
+int main() {
+    return b + 63;
+}"
 
 echo OK

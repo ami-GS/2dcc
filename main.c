@@ -8,6 +8,7 @@ int main(int argc, char **argv) {
   }
 
   user_input = argv[1];
+  global_vars = new_vec();
   token = tokenize(user_input);
   program();
 

@@ -57,6 +57,8 @@ Node *new_node_num(int val) {
 }
 
 LVar *find_lvar(Token *tk) {
+    if (!cur_func)
+        return NULL;
     for (int i = 0; i < cur_func->lvar_vec->len; i++) {
         LVar *lvar = vec_get(cur_func->lvar_vec, i);
         if (tk->len == lvar->len && memcmp(tk->str, lvar->name, tk->len) == 0)
@@ -65,7 +67,18 @@ LVar *find_lvar(Token *tk) {
     return NULL;
 }
 
+LVar *find_gvar(Token *tk) {
+    for (int i = 0; i < global_vars->len; i++) {
+        LVar *gvar = vec_get(global_vars, i);
+        if (tk->len == gvar->len && memcmp(tk->str, gvar->name, tk->len) == 0)
+            return gvar;
+    }
+    return NULL;
+}
+
 Arg *find_arg(Token *tk){
+    if (!cur_func)
+        return NULL;
     for (int i = 0; i < cur_func->arg_vec->len; i++) {
         Arg *arg = vec_get(cur_func->arg_vec, i);
 
@@ -254,6 +267,19 @@ void set_new_lvar(Node *node) {
     vec_push(cur_func->lvar_vec, lvar_in_vec);
 }
 
+void set_new_gvar(Node *node) {
+    LVar *gvar_in_vec = calloc(1, sizeof(LVar));
+    gvar_in_vec->type = node->type;
+    gvar_in_vec->name = node->name;
+    gvar_in_vec->len = node->name_len;
+    gvar_in_vec->array_size = node->array_size;
+    gvar_in_vec->array_sizes = node->array_sizes;
+    // gvar location?
+    // gvar_in_vec->offset = cur_func->variable_offset + gvar_in_vec->type->size * node->array_size;
+    // cur_func->variable_offset += lvar_in_vec->type->size * node->array_size;
+    // node->offset = lvar_in_vec->offset;
+    vec_push(global_vars, gvar_in_vec);
+}
 
 void parse_array_decl(Node *node, Token *type_tkn, int ptr_cnt, Vector *array_sizes) {
     Type *type_tmp = calloc(1, sizeof(Type));
@@ -396,14 +422,29 @@ void parse_lval_decl(Node *node, Token *type, int ptr_cnt) {
     node->kind = ND_LVARDECL;
 }
 
-void parse_lvar_decl(Node *node, Token *type, int ptr_cnt, Vector *array_sizes_or_indices) {
+void parse_gvar_ref(Node *node, LVar *gvar, Vector *array_sizes_or_indices) {
+    if (array_sizes_or_indices) {
+        // TODO: doesn't work
+        parse_array_ref(node, gvar, array_sizes_or_indices);
+    }
+    node->type = gvar->type;
+    node->kind = ND_GVAR;
+}
+
+void parse_gvar_decl(Node *node, Token *type, int ptr_cnt, Vector *array_sizes_or_indices) {
     node->array_size = 1;
     if (array_sizes_or_indices) {
         parse_array_decl(node, type, ptr_cnt, array_sizes_or_indices);
     } else {
-        parse_lval_decl(node, type, ptr_cnt);
+        node->type = get_type(type, ptr_cnt);
     }
-    set_new_lvar(node);
+    node->kind = ND_GVARDECL;
+    // TODO: currently allowing simple value
+    if (consume("=")) {
+        node->has_global_init = true;
+        node->val = expect_number();
+    }
+    set_new_gvar(node);
 }
 
 Node *parse_var(Token *tok, Token *type, int ptr_cnt) {
@@ -420,10 +461,18 @@ Node *parse_var(Token *tok, Token *type, int ptr_cnt) {
     } else if (arg) {
         parse_arg_ref(node, arg, array_sizes_or_indices);
     } else {
-        if (!type)
-            error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
-        parse_lvar_decl(node, type, ptr_cnt, array_sizes_or_indices);
-    }
+        LVar *gvar = find_gvar(tok);
+        if (gvar) {
+            parse_gvar_ref(node, gvar, array_sizes_or_indices);
+        } else {
+            if (!type)
+                error("type for variable [%.*s] is not specified\n", tok->len, tok->str);
+            if (cur_func) {
+                parse_lvar_decl(node, type, ptr_cnt, array_sizes_or_indices);
+            } else {
+                parse_gvar_decl(node, type, ptr_cnt, array_sizes_or_indices);
+            }
+        }
     }
     return node;
 }

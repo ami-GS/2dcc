@@ -80,6 +80,27 @@ void gen(Node *node) {
         case ND_NUM:
             printf("  push %d\n", node->val);
             return;
+        case ND_GVARDECL:
+            printf("%.*s:\n", node->name_len, node->name);
+            if (node->has_global_init)
+                printf("  .long %d\n", node->val);
+            else if (node->array_init) {
+                for (int i = 0; i < node->array_init->len; i++) {
+                    printf("  .long %d\n", vec_get(node->array_init, i));
+                }
+            } else
+                printf("  .zero %d\n", node->type->size * node->array_size);
+            return;
+        case ND_GVAR:
+            if (node->type->type == ARRAY && node->array_idx_exprs) {
+                gen(vec_get(node->array_idx_exprs, 0));
+                printf("  pop rax\n");
+                printf("  mov rax, %.*s[rip+rax]\n", node->name_len, node->name);
+            } else {
+                printf("  mov rax, %.*s[rip]\n", node->name_len, node->name);
+            }
+            printf("  push rax\n");
+            return;
         case ND_LVARDECL:
             return;
         case ND_LVAR:
