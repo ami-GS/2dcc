@@ -571,8 +571,15 @@ Node *primary() {
         return new_node(ND_ASSIGN, node, new_node(ND_SUB, node, new_node_num(1)));
     }
     node = parse_identifier();
-    if (node)
+    if (node) {
+        if (consume("++")) { // X++;
+            // left for simple load, right for inc
+            return new_node(ND_NOP, node, new_node(ND_ASSIGN, node, new_node(ND_ADD, node, new_node_num(1))));
+        } else if (consume("--")) {
+            return new_node(ND_NOP, node, new_node(ND_ASSIGN, node, new_node(ND_SUB, node, new_node_num(1))));
+        }
         return node;
+    }
     return parse_immediate();
 }
 
