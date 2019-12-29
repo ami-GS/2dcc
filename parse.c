@@ -563,6 +563,12 @@ Node *primary() {
         node = expr();
         expect(')');
         return node;
+    } else if (consume("++")) { // ++X;
+        node = parse_identifier();
+        return new_node(ND_ASSIGN, node, new_node(ND_ADD, node, new_node_num(1)));
+    } else if (consume("--")) {
+        node = parse_identifier();
+        return new_node(ND_ASSIGN, node, new_node(ND_SUB, node, new_node_num(1)));
     }
     node = parse_identifier();
     if (node)
