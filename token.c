@@ -20,12 +20,13 @@ bool is_alnum(char c) {
            (c == '_');
 }
 
-Token *tokenize(char *p) {
+Token *tokenize(char *filename) {
     Token head;
     head.next = NULL;
     Token *cur = &head;
 
     char *name_start = NULL;
+    char* p = read_file(filename);
     while (*p) {
         if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
             cur = new_token(TK_RETURN, cur, p, 6);

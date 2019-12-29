@@ -7,9 +7,9 @@ int main(int argc, char **argv) {
     return 1;
   }
 
-  user_input = argv[1];
+  char* filename = argv[1];
   global_vars = new_vec();
-  token = tokenize(user_input);
+  token = tokenize(filename);
   program();
 
   printf(".intel_syntax noprefix\n");

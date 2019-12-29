@@ -7,6 +7,27 @@
 #include <assert.h>
 #include "2dcc.h"
 
+char* read_file(char* filename) {
+    FILE* fp = fopen(filename, "r");
+    if (!fp) {
+        printf("failed to open file\n");
+        exit(-1);
+    }
+    if (fseek(fp, 0, SEEK_END) == -1)
+        error("%s: fseek: %s", filename, strerror(-1));
+    size_t size = ftell(fp);
+    if (fseek(fp, 0, SEEK_SET) == -1)
+        error("%s: fseek: %s", filename, strerror(-1));
+
+    char *buf = calloc(1, size + 2);
+    fread(buf, size, 1, fp);
+    if (size == 0 || buf[size - 1] != '\n')
+        buf[size++] = '\n';
+    buf[size] = '\0';
+    fclose(fp);
+    return buf;
+}
+
 void error_at(char *loc, char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
