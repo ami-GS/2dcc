@@ -101,6 +101,7 @@ void gen(Node *node) {
 
     static int if_cnt = 0;
     static int local_char_cnt = 0;
+    static int loop_cnt = 0;
     switch (node->kind) {
         case ND_NUM:
             printf("  push %d\n", node->val);
@@ -203,26 +204,26 @@ void gen(Node *node) {
             if_cnt++;
             return;
         case ND_WHILE:
-            printf(".LbeginXXX:\n");
+            printf(".Lbegin_%d:\n", loop_cnt);
             gen(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
-            printf("  je .LendXXX\n");
+            printf("  je .Lend_%d\n", loop_cnt);
             gen(node->body);
-            printf("  jmp .LbeginXXX\n");
-            printf(".LendXXX:\n");
+            printf("  jmp .Lbegin_%d\n", loop_cnt);
+            printf(".Lend_%d:\n", loop_cnt++);
             return;
         case ND_FOR:
             gen(node->init);
-            printf(".LbeginXXX:\n");
+            printf(".Lbegin_%d:\n", loop_cnt);
             gen(node->cond);
             printf("  pop rax\n");
             printf("  cmp rax, 0\n");
-            printf("  je .LendXXX\n");
+            printf("  je .Lend_%d\n", loop_cnt);
             gen(node->body);
             gen(node->inc);
-            printf("  jmp .LbeginXXX\n");
-            printf(".LendXXX:\n");
+            printf("  jmp .Lbegin_%d\n", loop_cnt);
+            printf(".Lend_%d:\n", loop_cnt++);
             return;
         case ND_BLOCK:
         {
